@@ -1,18 +1,16 @@
-#include "NiteShader.h"
+#include "ShaderData.h"
+#include "Light.h"
 #include "Globals.h"
 #include "Camera.h"
 #include "ToonEffect.h"
 
-ToonEffect::ToonEffect(NiteShader* parent) : Effect(parent)
+ToonEffect::ToonEffect()
 {
 
 	m_pWorldViewProjHandle = 0;
 	m_pWorldHandle = 0;
 	m_pLightPosHandle = 0;
 	m_pLightDiffuseHandle = 0;
-
-	m_pFileName = "Shaders/Toon.fx";
-	m_pEffectName = "TOON";
 }
 
 ToonEffect::~ToonEffect()
@@ -26,11 +24,6 @@ void ToonEffect::Shutdown()
 
 void ToonEffect::Init()
 {
-	CompileShader();
-
-	if (m_bCompileErrors)
-		return;
-
 	//Get and set technique
 	m_pTechniqueHandle = m_pEffect->GetTechniqueByName("Toon");
 	HR(m_pEffect->SetTechnique(m_pTechniqueHandle));
@@ -41,26 +34,20 @@ void ToonEffect::Init()
 	m_pLightPosHandle = m_pEffect->GetParameterByName(0, "lightPos");
 	m_pLightDiffuseHandle = m_pEffect->GetParameterByName(0, "lightDif");
 
-	//Set constant handles
-	HR(m_pEffect->SetValue(m_pLightDiffuseHandle, &m_pParent->GetLight()->GetDiffuse(), sizeof(D3DXVECTOR3)));
 }
 
-void ToonEffect::Update(float dt)
+void ToonEffect::SetData(const ShaderData* data)
 {
-	if (m_bCompileErrors)
-		return;
-
-	D3DXMATRIX temp = m_pParent->GetWorld() * g_Camera->GetViewProj();
-	HR(m_pEffect->SetMatrix(m_pWorldHandle, &m_pParent->GetWorld()));
-	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &temp));
-	HR(m_pEffect->SetValue(m_pLightPosHandle, m_pParent->GetLight()->GetPosition(), sizeof(D3DXVECTOR3)));
+	D3DXMATRIX WVP = *(data->world) * *(data->view) * *(data->proj);
+	HR(m_pEffect->SetMatrix(m_pWorldHandle, data->world));
+	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &WVP));
+	HR(m_pEffect->SetValue(m_pLightPosHandle, data->light->GetPosition(), sizeof(D3DXVECTOR3)));
+	HR(m_pEffect->SetValue(m_pLightDiffuseHandle, data->light->GetDiffuse(), sizeof(D3DXVECTOR3)));
 }
 
 void ToonEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 {
-	if (m_bCompileErrors)
-		return;
-
+	HR(m_pDevice->BeginScene());
 	UINT passes;
 
 	HR(m_pEffect->Begin(&passes, 0));
@@ -72,5 +59,12 @@ void ToonEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 		HR(m_pEffect->EndPass());
 	}
 	HR(m_pEffect->End());
-	PrintName();
+	HR(m_pDevice->EndScene());
+}
+
+Effect* ToonEffect::Create(ID3DXBuffer** errors)
+{
+	ToonEffect* newEffect = NEW ToonEffect();
+	D3DXCreateEffectFromFile(m_pDevice, L"Shaders/Toon.fx", 0, 0, D3DXSHADER_DEBUG, 0, &newEffect->m_pEffect, errors);
+	return newEffect;
 }

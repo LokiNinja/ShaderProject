@@ -6,18 +6,21 @@ class SubsurfaceScatterEffect : public Effect
 {
 public:
 	//Constructor/Destructor
-	SubsurfaceScatterEffect(NiteShader* parent, char* texture);
+
 	virtual ~SubsurfaceScatterEffect();
 
 	//Interface
 	void Init() override;
 	void Shutdown() override;
 	void Render(float dt, ID3DXMesh* mesh, int numMaterials);
-	void Update(float dt);
-
+	void SetData(const ShaderData*) override;
+	static Effect* Create(ID3DXBuffer**);
 private:
+	SubsurfaceScatterEffect();
+	SubsurfaceScatterEffect(const WCHAR* texture);
+
 	IDirect3DTexture9*			m_pGradientTexture;
-	char*						m_pTextureFile;
+	const WCHAR*				m_pTextureFile;
 	float						m_grow;
 	//Render to surface
 	IDirect3DSurface9*			m_pSurface;
@@ -39,6 +42,7 @@ private:
 	D3DXHANDLE			m_pGrowHandle;
 	D3DXHANDLE			m_pGradientTextureHandle;
 	D3DXHANDLE			m_pLightDepthTextureHandle;
+	D3DXHANDLE			m_pLightViewProj;
 
 	void				CreateTextureBias();
 };

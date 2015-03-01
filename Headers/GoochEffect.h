@@ -5,16 +5,19 @@ class GoochEffect : public Effect
 {
 public:
 	//constructor/destructor
-	GoochEffect(NiteShader* parent, D3DXVECTOR3 warmColor, D3DXVECTOR3 coolColor);
+
 	virtual ~GoochEffect();
 
 	//Effect Interface
-	void Init();
+	void Init() override;
 	void Shutdown();
-	void Render(float dt, ID3DXMesh* mesh, int numMaterials);
-	void Update(float dt);
+	void Render(float dt, ID3DXMesh* mesh, int numMaterials) override;
+	void SetData(const ShaderData*) override;
+	static Effect* Create(ID3DXBuffer**);
+private:
+	GoochEffect(D3DXVECTOR3 warmColor, D3DXVECTOR3 coolColor);
+	GoochEffect() {}
 
-protected:
 	//Colors
 	D3DXVECTOR3 m_warmColor;
 	D3DXVECTOR3 m_coolColor;

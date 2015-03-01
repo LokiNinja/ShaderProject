@@ -6,17 +6,20 @@ class AmbientEffect : public Effect
 {
 public:
 	//Constructor/Destructor
-	AmbientEffect(NiteShader* parent, char* texture);
-	virtual ~AmbientEffect();
 
+	virtual ~AmbientEffect();
+	static Effect* Create(ID3DXBuffer**);
 	void Init() override;
 	void Render(float dt, ID3DXMesh* mesh, int numMat) override;
-	void Update(float dt);
-	void Shutdown() override;
-protected:
+	void SetData(const ShaderData*) override;
+	void Shutdown() override; 
+private:
+	AmbientEffect(const WCHAR* texture);
+	AmbientEffect() {}
+
 	//Texture info
 	IDirect3DTexture9*			m_pTexture;
-	char*						m_pTextureFile;
+	const WCHAR*				m_pTextureFile;
 	//Handles
 	D3DXHANDLE					m_pWorldViewProjHandle;
 	D3DXHANDLE					m_pWorldHandle;

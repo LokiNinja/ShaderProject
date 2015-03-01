@@ -1,13 +1,10 @@
 #include "AmbientEffect.h"
-#include "NiteShader.h"
 #include "Globals.h"
-#include "Camera.h"
+#include "ShaderData.h"
 
 //Constructor
-AmbientEffect::AmbientEffect( NiteShader* parent, char* texture) : Effect(parent)
+AmbientEffect::AmbientEffect(const WCHAR* texture)
 {
-	m_pFileName = "Shaders/Ambient.fx";
-	m_pEffectName = "AMBIENT";
 	m_pTexture = 0;
 	m_pTextureFile = texture;
 	m_pWorldViewProjHandle = 0;
@@ -24,16 +21,8 @@ AmbientEffect::~AmbientEffect()
 //Initialize handles and such
 void AmbientEffect::Init()
 {
-	//Compile the effect shader
-	CompileShader();
-	if (m_bCompileErrors)
-		return;
-	{
-		string newString(m_pTextureFile);
-		wstring tempString(newString.begin(), newString.end());
-		//Load Texture
-		HR(D3DXCreateTextureFromFile(m_pParent->GetDevice(), tempString.c_str(), &m_pTexture));
-	}
+	//Load Texture
+	HR(D3DXCreateTextureFromFile(m_pDevice, m_pTextureFile, &m_pTexture));
 	//Initialize handles
 	m_pWorldViewProjHandle = m_pEffect->GetParameterByName(0, "worldViewProj");
 	m_pWorldHandle = m_pEffect->GetParameterByName(0, "world");
@@ -51,20 +40,17 @@ void AmbientEffect::Shutdown()
 	SAFE_RELEASE(m_pTexture);
 }
 
-//Updates the effect---this simply sets the matrices each frame
-void AmbientEffect::Update(float dt)
+void AmbientEffect::SetData(const ShaderData* data)
 {
-	if (m_bCompileErrors)
-		return;
-	//Set matrices
-	D3DXMATRIX temp = m_pParent->GetWorld() * g_Camera->GetView() * g_Camera->GetProjection();
+	D3DXMATRIX temp = *(data->world) * *(data->view) * *(data->proj);
 	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &temp));
-	HR(m_pEffect->SetMatrix(m_pWorldHandle, &m_pParent->GetWorld()));
+	HR(m_pEffect->SetMatrix(m_pWorldHandle, data->world));
 }
 
 //Render the mesh
 void AmbientEffect::Render(float dt, ID3DXMesh* mesh, int numMat)
 {
+	HR(m_pDevice->BeginScene());
 	UINT passes;
 	HR(m_pEffect->Begin(&passes, 0));
 	for (UINT i = 0; i < passes; i++)
@@ -75,5 +61,12 @@ void AmbientEffect::Render(float dt, ID3DXMesh* mesh, int numMat)
 		HR(m_pEffect->EndPass());
 	}
 	HR(m_pEffect->End());
-	PrintName();
+	HR(m_pDevice->EndScene());
+}
+
+Effect* AmbientEffect::Create(ID3DXBuffer** errors)
+{
+	AmbientEffect* newEffect = NEW AmbientEffect(L"Textures/Grass.bmp");
+	D3DXCreateEffectFromFile(m_pDevice, L"Shaders/Ambient.fx", 0, 0, D3DXSHADER_DEBUG, 0, &newEffect->m_pEffect, errors);
+	return newEffect;
 }

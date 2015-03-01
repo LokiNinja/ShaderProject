@@ -12,6 +12,9 @@
 #include "ToonEffect.h"
 #include "Input.h"
 #include "Camera.h"
+#include "DefaultEffect.h"
+#include "ShaderData.h"
+#include "HLSLCompiler.h"
 
 IDirect3DVertexDeclaration9*	Vertex::decl;
 
@@ -19,19 +22,21 @@ IDirect3DVertexDeclaration9*	Vertex::decl;
 NiteShader::NiteShader()
 {
 	//Initialize pointers to 0
-	m_pD3D = 0;
-	m_pD3DDevice = 0;
+	m_pD3D = nullptr;
+	m_pD3DDevice = nullptr;
 	m_pFont = 0;
-	m_pLight = 0;
+	m_pLight = nullptr;
 	//Zero out structures and non pointers
 	ZeroMemory(&m_D3DPP, sizeof(D3DPRESENT_PARAMETERS));
 	ZeroMemory(&m_D3DCaps, sizeof(D3DCAPS9));
 	m_width = 0;
 	m_height = 0;
 	m_clearColor = D3DXCOLOR(0.0f, 0.7f, 0.5f, 1.0f);
-	m_pActor = 0;
+	m_pActor = nullptr;
+	m_pCamera = nullptr;
 	m_selectedEffect = 0;
 	D3DXMatrixIdentity(&m_world);
+	m_pCompiler = nullptr;
 }
 
 //Destructor
@@ -43,13 +48,17 @@ NiteShader::~NiteShader()
 //Initializes NiteShader
 void NiteShader::Init()
 {
-	m_pLight = new Light();
+	m_pLight = NEW Light();
+
+	m_pCamera = NEW Camera(D3DXVECTOR3(0.f, 0.f, -20.f));
 	//Initialize D3D
 	InitD3D();
 	//Initialize Mesh Actor
 	InitActor(NULL);
+	m_pCompiler = NEW HLSLCompiler(&DefaultEffect::Create);
+	Effect::SetDevice(m_pD3DDevice);
 	//Load Effects
-	LoadEffects();
+	RegisterAndLoadEffects();
 }
 
 //Performs Cleanup
@@ -69,9 +78,13 @@ void NiteShader::Shutdown()
 	SAFE_RELEASE(m_pFont);
 	SAFE_RELEASE(m_pD3DDevice);
 	delete m_pActor;
-	m_pActor = 0;
+	m_pActor = nullptr;
 	delete m_pLight;
-	m_pLight = 0;
+	m_pLight = nullptr;
+	delete m_pCamera;
+	m_pCamera = nullptr;
+	delete m_pCompiler;
+	m_pCompiler = nullptr;
 }
 
 //Updates the main app
@@ -109,18 +122,28 @@ void NiteShader::Update(float dt)
 	{
 		for (int i = 0; i < m_effectList.size(); i++)
 		{
-			m_effectList[i]->ReCompile();
+			delete m_effectList[i];
 		}
+		m_effectList.clear();
+		LoadEffects();
 		lastPress = 0.f;
 	}
 	else
 	{
 		lastPress += dt;
 	}
+	m_pCamera->Update(dt);
 	//Update the light
 	m_pLight->Update(dt);
+	ShaderData data;
+	ZeroMemory(&data, sizeof(ShaderData));
+	data.world = &m_world;
+	data.camera = m_pCamera;
+	data.proj = &m_pCamera->GetProjection();
+	data.view = &m_pCamera->GetView();
+	data.light = m_pLight;
 	//Update selected effect
-	m_effectList[m_selectedEffect]->Update(dt);
+	m_effectList[m_selectedEffect]->SetData(&data);
 }
 
 //Renders a single frame
@@ -128,13 +151,8 @@ void NiteShader::Render(float dt)
 {
 	//Clear the buffers
 	HR(m_pD3DDevice->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, m_clearColor, 1.0f, 0));
-	//Begin Rendering
-	HR(m_pD3DDevice->BeginScene());
-
 	//Render selected effect
 	m_effectList[m_selectedEffect]->Render(dt, m_pActor->GetMesh(), m_pActor->GetNumMaterials());
-
-	HR(m_pD3DDevice->EndScene());
 	//Present and discard the buffer
 	HR(m_pD3DDevice->Present(0, 0, 0, 0));
 }
@@ -162,7 +180,7 @@ void NiteShader::OnResetDevice()
 		temp->OnResetDevice();
 	}
 	//Reset the camera
-	g_Camera->SetProjection(D3DX_PI * 0.25f, m_width/(float)m_height, 1.0f, 1024.0f);
+	m_pCamera->SetProjection(D3DX_PI * 0.25f, m_width/(float)m_height, 1.0f, 1024.0f);
 }
 
 //Checks whether a device has been lost
@@ -272,37 +290,52 @@ void NiteShader::InitActor(char* fileName)
 {
 	delete m_pActor;
 	m_pActor = 0;
-	m_pActor = new Actor(this);
+	m_pActor = NEW Actor(m_pD3DDevice);
 	m_pActor->Load(fileName);
 }
 
 //Load Effects
+void NiteShader::RegisterAndLoadEffects()
+{
+	//Register
+	RegisterEffects();
+	//Load
+	LoadEffects();
+}
+void NiteShader::RegisterEffects()
+{
+	m_pCompiler->Register("ambient", &AmbientEffect::Create);
+	m_pCompiler->Register("diffuse", &DiffuseEffect::Create);
+	m_pCompiler->Register("specular", &SpecularEffect::Create);
+	m_pCompiler->Register("gooch", &GoochEffect::Create);
+	m_pCompiler->Register("phong", &PhongEffect::Create);
+	m_pCompiler->Register("bump", &BumpEffect::Create);
+	m_pCompiler->Register("toon", &ToonEffect::Create);
+	m_pCompiler->Register("subsurfacescatter", &SubsurfaceScatterEffect::Create);
+	m_pCompiler->Register("shadowmap", &ShadowmapEffect::Create);
+}
+
 void NiteShader::LoadEffects()
 {
-	//Create effect instances
-	Effect* temp = new AmbientEffect(this, "Textures/Grass.bmp");
+	//Load
+	Effect* temp = m_pCompiler->CompileAndPrintErrors("ambient");
 	m_effectList.push_back(temp);
-	temp = new DiffuseEffect(this, "Textures/Grass.bmp");
+	temp = m_pCompiler->CompileAndPrintErrors("diffuse");
 	m_effectList.push_back(temp);
-	temp = new SpecularEffect(this, "Textures/Grass.bmp");
+	temp = m_pCompiler->CompileAndPrintErrors("specular");
 	m_effectList.push_back(temp);
-	temp = new GoochEffect(this, D3DXVECTOR3(1.f, 0.f, 0.f), D3DXVECTOR3(0.f, 0.f, 1.f));
+	temp = m_pCompiler->CompileAndPrintErrors("gooch");
 	m_effectList.push_back(temp);
-	temp = new PhongEffect(this, "Textures/rockwall.jpg");
+	temp = m_pCompiler->CompileAndPrintErrors("phong");
 	m_effectList.push_back(temp);
-	temp = new BumpEffect(this, "Textures/rockwall.jpg", "Textures/rockNorm.jpg");
+	temp = m_pCompiler->CompileAndPrintErrors("bump");
 	m_effectList.push_back(temp);
-	temp = new ToonEffect(this);
+	temp = m_pCompiler->CompileAndPrintErrors("toon");
 	m_effectList.push_back(temp);
-	temp = new SubsurfaceScatterEffect(this, "Textures/SubsurfaceTexture.bmp");
+	temp = m_pCompiler->CompileAndPrintErrors("subsurfacescatter");
 	m_effectList.push_back(temp);
-	temp = new ShadowmapEffect(this, "Textures/rockwall.jpg", "Textures/floor.bmp");
+	temp = m_pCompiler->CompileAndPrintErrors("shadowmap");
 	m_effectList.push_back(temp);
-	//Initialize effects
-	for (int i = 0; i < m_effectList.size(); i++)
-	{
-		m_effectList[i]->Init();
-	}
 }
 
 //Prints a string to the screen

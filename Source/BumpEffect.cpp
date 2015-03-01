@@ -1,17 +1,16 @@
 #include "BumpEffect.h"
 #include "Camera.h"
 #include "Globals.h"
-#include "NiteShader.h"
+#include "Light.h"
+#include "ShaderData.h"
 
 //Constructor
-BumpEffect::BumpEffect(NiteShader* parent, char* texture, char* normal) : Effect(parent)
+BumpEffect::BumpEffect(const WCHAR* texture, const WCHAR* normal)
 {
 	m_pTextureFile = texture;
 	m_pNormalMapFile = normal;
 	m_pTexture = 0;
 	m_pNormalMap = 0;
-	m_pFileName = "Shaders/Bump.fx";
-	m_pEffectName = "BUMP MAP";
 
 	//Handles
 	m_pWorldViewProjHandle = 0;
@@ -41,27 +40,12 @@ void BumpEffect::Shutdown()
 //Initialize
 void BumpEffect::Init()
 {
-	//Compile shader
-	CompileShader();
-	if (m_bCompileErrors)
-		return;
-
-	//Load texture and normal map
-	{
-		string filename(m_pTextureFile);
-		wstring newString(filename.begin(), filename.end());
-		HR(D3DXCreateTextureFromFile(m_pParent->GetDevice(), newString.c_str(), &m_pTexture));
-	}
-	{
-		string filename(m_pNormalMapFile);
-		wstring newString(filename.begin(), filename.end());
-		HR(D3DXCreateTextureFromFile(m_pParent->GetDevice(), newString.c_str() , &m_pNormalMap));
-	}
+	HR(D3DXCreateTextureFromFile(m_pDevice, m_pTextureFile, &m_pTexture));
+	HR(D3DXCreateTextureFromFile(m_pDevice, m_pNormalMapFile , &m_pNormalMap));
 
 	//Set the technique
 	m_pTechniqueHandle = m_pEffect->GetTechniqueByName("Bump");
 	HR(m_pEffect->SetTechnique(m_pTechniqueHandle));
-
 
 	//Get handles
 	m_pWorldViewProjHandle = m_pEffect->GetParameterByName(0, "worldViewProj");
@@ -77,33 +61,26 @@ void BumpEffect::Init()
 	//Set texture handles
 	HR(m_pEffect->SetTexture(m_pTextureHandle, m_pTexture));
 	HR(m_pEffect->SetTexture(m_pNormalMapHandle, m_pNormalMap));
-
-	//Set light properties
-	m_pParent->GetLight()->SetAttenuation(D3DXVECTOR3(0.f, .4f, 0.f));
-	HR(m_pEffect->SetValue(m_pLightDiffuseHandle, m_pParent->GetLight()->GetDiffuse(), sizeof(D3DXVECTOR3)));
-	HR(m_pEffect->SetValue(m_pLightAttenuationHandle, m_pParent->GetLight()->GetAttenuation(), sizeof(D3DXVECTOR3)));
 }
 
-void BumpEffect::Update(float dt)
+void BumpEffect::SetData(const ShaderData* data)
 {
-	if (m_bCompileErrors)
-		return;
-
-	D3DXMATRIX temp = m_pParent->GetWorld() * g_Camera->GetViewProj();
-	D3DXVECTOR3 lightPos = m_pParent->GetLight()->GetPosition();
-	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &temp));
-	HR(m_pEffect->SetMatrix(m_pWorldHandle, &m_pParent->GetWorld()));
-	D3DXMatrixInverse(&temp, 0, &temp);
-	HR(m_pEffect->SetMatrix(m_pWorldInvHandle, &temp));
-	HR(m_pEffect->SetValue(m_pEyePosHandle, g_Camera->GetPos(), sizeof(D3DXVECTOR3)));
-	HR(m_pEffect->SetValue(m_pLightDirHandle, lightPos, sizeof(D3DXVECTOR3)));
+	D3DXMATRIX worldView = *(data->world) * *(data->view);
+	D3DXMATRIX worldInv;
+	D3DXMatrixInverse(&worldInv, 0, data->world);
+	D3DXMATRIX WVP = worldView * *(data->proj);
+	HR(m_pEffect->SetValue(m_pLightAttenuationHandle, data->light->GetAttenuation(), sizeof(D3DXVECTOR3)));
+	HR(m_pEffect->SetValue(m_pLightDiffuseHandle, data->light->GetDiffuse(), sizeof(D3DXVECTOR3)));
+	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &WVP));
+	HR(m_pEffect->SetMatrix(m_pWorldHandle, data->world));
+	HR(m_pEffect->SetMatrix(m_pWorldInvHandle, &worldInv));
+	HR(m_pEffect->SetValue(m_pLightDirHandle, data->light->GetPosition(), sizeof(D3DXVECTOR3)));
+	HR(m_pEffect->SetValue(m_pEyePosHandle, data->camera->GetPos(), sizeof(D3DXVECTOR3)));
 }
 
 void BumpEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 {
-	if (m_bCompileErrors)
-		return;
-
+	HR(m_pDevice->BeginScene());
 	UINT passes;
 	HR(m_pEffect->Begin(&passes, 0));
 	for (UINT i = 0; i < passes; i++)
@@ -116,5 +93,12 @@ void BumpEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 		HR(m_pEffect->EndPass());
 	}
 	HR(m_pEffect->End());
-	PrintName();
+	HR(m_pDevice->EndScene());
+}
+
+Effect* BumpEffect::Create(ID3DXBuffer** errors)
+{
+	BumpEffect* newEffect = NEW BumpEffect(L"Textures/rockwall.jpg", L"Textures/rockNorm.jpg");
+	D3DXCreateEffectFromFile(m_pDevice, L"Shaders/Bump.fx", 0, 0, D3DXSHADER_DEBUG, 0, &newEffect->m_pEffect, errors);
+	return newEffect;
 }

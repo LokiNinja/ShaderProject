@@ -5,18 +5,22 @@ class PhongEffect : public Effect
 {
 public:
 	//Constructor/Destructor
-	PhongEffect(NiteShader* parent, char* texture);
+
 	virtual ~PhongEffect();
 
 	//Interface
 	void Init() override;
 	void Shutdown() override;
-	void Update(float dt) override;
-	void Render(float dt, ID3DXMesh* mesh, int numMaterials);
+	void Render(float dt, ID3DXMesh* mesh, int numMaterials) override;
+	void SetData(const ShaderData*) override;
+	static Effect* Create(ID3DXBuffer**);
 protected:
+	PhongEffect(const WCHAR* texture);
+	PhongEffect() {}
+
 	//Texture stuff
 	IDirect3DTexture9*		m_pTexture;
-	char*					m_pTextureFile;
+	const WCHAR*			m_pTextureFile;
 
 	//Handles
 	D3DXHANDLE				m_pWorldViewProjHandle;

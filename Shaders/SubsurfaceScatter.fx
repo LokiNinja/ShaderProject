@@ -1,6 +1,6 @@
 float4x4	worldViewProj;
+float4x4	lightViewProj;
 float4x4	world;
-float4x4	worldView;
 float4x4	lightTexMatrix;
 float4x4	lightMatrix;
 float		grow;
@@ -69,8 +69,8 @@ Depth2P	DepthVS(A2V IN)
 	float4 P = IN.Pos;
 	//Scale out the position
 	P.xyz += IN.Normal * grow;
-	OUT.Pos = mul(P, worldViewProj);
-	OUT.Dist = length(mul(IN.Pos, worldView));
+	OUT.Pos = mul(P, lightViewProj);
+	OUT.Dist = length(mul(IN.Pos, lightMatrix));
 	return OUT;
 }
 

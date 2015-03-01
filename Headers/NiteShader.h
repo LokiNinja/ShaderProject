@@ -12,6 +12,8 @@ extern HWND g_hWnd;
 extern HINSTANCE g_hInstance;
 
 class Actor;
+class IShaderCompiler;
+class Camera;
 
 class NiteShader
 {
@@ -41,18 +43,6 @@ public:
 	vector<Effect*>		m_effectList;
 	//Currently selected effect
 	int					m_selectedEffect;
-	//Get Device
-	IDirect3DDevice9*	GetDevice()		const { return m_pD3DDevice; }
-	//Get width		
-	int					GetWidth()		const { return m_width; }
-	//Get Height
-	int					GetHeight()		const { return m_height; }
-	//Gets the world matrix
-	const D3DXMATRIX&	GetWorld()		const { return m_world; }
-	//Returns the light for interaction with shaders
-	Light*		GetLight() { return m_pLight; }
-
-
 private:
 	//No copying
 	NiteShader(const NiteShader&);
@@ -73,8 +63,12 @@ private:
 	//Font object for printing effect name
 	ID3DXFont*				m_pFont;
 
-	//Light-------------------------------------------------------------------Start with just one, can change later
+	//Light
 	Light*					m_pLight;
+
+	Camera*					m_pCamera;
+
+	IShaderCompiler*		m_pCompiler;
 
 	//World transform
 	D3DXMATRIX				m_world;
@@ -90,5 +84,7 @@ private:
 	//Loads a mesh to display effects on, if null a sphere is created
 	void InitActor(char* fileName);	
 	//Loads all effects
+	void RegisterAndLoadEffects();
 	void LoadEffects();
+	void RegisterEffects();
 };

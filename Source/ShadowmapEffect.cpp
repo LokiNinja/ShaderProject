@@ -1,8 +1,8 @@
 #include "ShadowmapEffect.h"
-#include "NiteShader.h"
 #include "Globals.h"
 #include "Camera.h"
-#include "Input.h"
+#include "ShaderData.h"
+#include "Light.h"
 #include <climits>
 using namespace std;
 
@@ -10,7 +10,7 @@ using namespace std;
 #define SHADOW_MAP_SIZE 512
 
 //Constructor
-ShadowmapEffect::ShadowmapEffect(NiteShader* parent, char* sphereTex, char* groundTex) : Effect(parent)
+ShadowmapEffect::ShadowmapEffect( const WCHAR* sphereTex, const WCHAR* groundTex)
 {
 	m_pSphereTexture = 0;
 	m_pSphereTextureFile = sphereTex;
@@ -20,8 +20,6 @@ ShadowmapEffect::ShadowmapEffect(NiteShader* parent, char* sphereTex, char* grou
 	m_pGroundVB = 0;
 	m_pGroundIB = 0;
 	m_pShadowMapTexture = 0;
-	m_pFileName = "Shaders/Shadowmap.fx";
-	m_pEffectName = "SHADOW MAP";
 
 	//Handles
 	m_pWorldViewProjHandle = 0;
@@ -43,10 +41,6 @@ ShadowmapEffect::~ShadowmapEffect()
 //Initialize
 void ShadowmapEffect::Init()
 {
-	CompileShader();
-	if (m_bCompileErrors)
-		return;
-
 	//Create Identity matrices
 	D3DXMatrixIdentity(&m_lightSpace);
 	D3DXMatrixIdentity(&m_textureSpace);
@@ -66,35 +60,17 @@ void ShadowmapEffect::Init()
 	m_pShadowMapHandle = m_pEffect->GetParameterByName(0, "shadowMap");
 	m_pShadowMapResolutionHandle = m_pEffect->GetParameterByName(0, "shadowMapRes");
 
-	//Create textures -- Sphere
-	{
-		string newString(m_pSphereTextureFile);
-		wstring tempString(newString.begin(), newString.end());
-		HR(D3DXCreateTextureFromFile(m_pParent->GetDevice(), tempString.c_str(), &m_pSphereTexture));
-	}
-	{
-		string newString(m_pGroundTextureFile);
-		wstring tempString(newString.begin(), newString.end());
-		HR(D3DXCreateTextureFromFile(m_pParent->GetDevice(), tempString.c_str(), &m_pGroundTexture));
-	}
-
+	HR(D3DXCreateTextureFromFile(m_pDevice, m_pSphereTextureFile, &m_pSphereTexture));
+	HR(D3DXCreateTextureFromFile(m_pDevice, m_pGroundTextureFile, &m_pGroundTexture));
+	
 	//Set up technique
 	m_pTechniqueHandle = m_pEffect->GetTechniqueByName("ShadowMap");
 	HR(m_pEffect->SetTechnique(m_pTechniqueHandle));
 
 	//Initialize render to texture
-	HR(D3DXCreateTexture(m_pParent->GetDevice(), SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 1,
+	HR(D3DXCreateTexture(m_pDevice, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 1,
 						D3DUSAGE_RENDERTARGET, D3DFMT_A32B32G32R32F, D3DPOOL_DEFAULT, &m_pShadowMapTexture));
 	HR(m_pShadowMapTexture->GetSurfaceLevel(0, &m_pShadowMapSurface));
-
-	//Set up initial light view
-	UpdateLightView();
-	
-	//Initialize Texture Bias Matrix
-	InitTextureBias();
-
-	//Ortho Projection for light = directional light
-	UpdateLightProj();
 
 	//Set constant data members in the shader
 	HR(m_pEffect->SetMatrix(m_pLightSpaceHandle, &m_lightSpace));
@@ -117,22 +93,19 @@ void ShadowmapEffect::Shutdown()
 //Render
 void ShadowmapEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 {
-	if (m_bCompileErrors)
-		return;
-
+	HR(m_pDevice->BeginScene());
 	IDirect3DSurface9*			m_pBackBuffer = nullptr;
 	UINT passes;
 	//Set data for this pass
 	HR(m_pEffect->SetMatrix(m_pLightViewProjHandle, &(m_lightSpace * m_lightProj)));
 	HR(m_pEffect->SetMatrix(m_pLightSpaceHandle, &m_lightSpace));
-	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &(m_pParent->GetWorld() * g_Camera->GetViewProj())));
-	HR(m_pEffect->SetMatrix(m_pWorldHandle, &m_pParent->GetWorld()));
+
 	//Get the backbuffer pointer
-	HR(m_pParent->GetDevice()->GetRenderTarget(0, &m_pBackBuffer));
+	HR(m_pDevice->GetRenderTarget(0, &m_pBackBuffer));
 	//Set the render target for depth map
-	HR(m_pParent->GetDevice()->SetRenderTarget(0, m_pShadowMapSurface));
+	HR(m_pDevice->SetRenderTarget(0, m_pShadowMapSurface));
 	//Clear the render target
-	HR(m_pParent->GetDevice()->Clear(0, 0, D3DCLEAR_TARGET, D3DXCOLOR(1.f, 1.f, 1.f, 1.f), 1.f, 0));
+	HR(m_pDevice->Clear(0, 0, D3DCLEAR_TARGET, D3DXCOLOR(1.f, 1.f, 1.f, 1.f), 1.f, 0));
 
 	//Depth Pass -- Begin
 	HR(m_pEffect->Begin(&passes, 0));
@@ -146,9 +119,9 @@ void ShadowmapEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 	//Depth Pass -- End
 
 	//Switch Render targets to back buffer
-	HR(m_pParent->GetDevice()->SetRenderTarget(0, m_pBackBuffer));
+	HR(m_pDevice->SetRenderTarget(0, m_pBackBuffer));
 	//Just clear zbuffer, should already be cleared from NiteShader::Render
-	HR(m_pParent->GetDevice()->Clear(0, 0, D3DCLEAR_ZBUFFER, D3DXCOLOR(0.f, 0.f, 0.f, 1.f), 1.f, 0));
+	HR(m_pDevice->Clear(0, 0, D3DCLEAR_ZBUFFER, D3DXCOLOR(0.f, 0.f, 0.f, 1.f), 1.f, 0));
 	//Set the texture for the ground
 	HR(m_pEffect->SetTexture(m_pTextureHandle, m_pGroundTexture));
 	HR(m_pEffect->SetTexture(m_pShadowMapHandle, m_pShadowMapTexture));
@@ -169,32 +142,17 @@ void ShadowmapEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 
 	//Print Effect Name
 	SAFE_RELEASE(m_pBackBuffer);
-	PrintName();
+	HR(m_pDevice->EndScene());
 }
 
-
-
-//Update
-void ShadowmapEffect::Update(float dt)
+void ShadowmapEffect::SetData(const ShaderData* data)
 {
-	if (m_bCompileErrors)
-		return;
-
-	static float lastPress = 0.f;
-
-	if (g_Input->KeyDown(DIK_P) && lastPress > KEYDELAY)
-	{
-		HR(D3DXSaveTextureToFile(L"Depth.bmp", D3DXIFF_BMP, m_pShadowMapTexture, NULL));
-		lastPress = 0.f;
-	}
-	else
-	{
-		lastPress += dt;
-	}
-
-	UpdateLightView();
+	UpdateLightView(data->light);
 	UpdateLightProj();
 	InitTextureBias();
+	D3DXMATRIX WVP = (*data->world) * *(data->view) * *(data->proj);
+	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &WVP));
+	HR(m_pEffect->SetMatrix(m_pWorldHandle, data->world));
 }
 
 
@@ -203,14 +161,12 @@ void ShadowmapEffect::Update(float dt)
 //Load data into ground plane VB and IB
 void ShadowmapEffect::InitGround()
 {
-	HR(m_pParent->GetDevice()->CreateVertexBuffer(4 * sizeof(Vertex), 0, 0, D3DPOOL_MANAGED, &m_pGroundVB, 0));
-	HR(m_pParent->GetDevice()->CreateIndexBuffer(6 * sizeof(WORD), 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, &m_pGroundIB, 0));
+	HR(m_pDevice->CreateVertexBuffer(4 * sizeof(Vertex), 0, 0, D3DPOOL_MANAGED, &m_pGroundVB, 0));
+	HR(m_pDevice->CreateIndexBuffer(6 * sizeof(WORD), 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, &m_pGroundIB, 0));
 
 	WORD* i = 0;
 	Vertex* v = 0;
 	HR(m_pGroundVB->Lock(0, 0, (void**)&v, 0));
-
-	//Write vertices
 
 	//Lowerleft
 	v[0].pos = D3DXVECTOR3(-GROUNDSIZE, -5.f, -GROUNDSIZE);
@@ -251,10 +207,10 @@ void ShadowmapEffect::InitGround()
 //Draws the ground
 void ShadowmapEffect::DrawGround()
 {
-		HR(m_pParent->GetDevice()->SetStreamSource(0, m_pGroundVB, 0, sizeof(Vertex)));
-		HR(m_pParent->GetDevice()->SetIndices(m_pGroundIB));
-		HR(m_pParent->GetDevice()->SetVertexDeclaration(Vertex::decl));
-		HR(m_pParent->GetDevice()->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, 6, 0, 2));
+		HR(m_pDevice->SetStreamSource(0, m_pGroundVB, 0, sizeof(Vertex)));
+		HR(m_pDevice->SetIndices(m_pGroundIB));
+		HR(m_pDevice->SetVertexDeclaration(Vertex::decl));
+		HR(m_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, 6, 0, 2));
 }
 
 //Initialize the combination projection and texture bias matrix
@@ -267,12 +223,12 @@ void ShadowmapEffect::InitTextureBias()
 	m_textureBias *= temp;
 }
 
-void ShadowmapEffect::UpdateLightView()
+void ShadowmapEffect::UpdateLightView(const Light* light)
 {
 	//Set up light view -- initial vectors (not normalized or even correcly oriented yet)
 	D3DXVECTOR3 right;
 	D3DXVECTOR3 up(0.f, 1.f, 0.f);
-	D3DXVECTOR3 pos = m_pParent->GetLight()->GetPosition();
+	D3DXVECTOR3 pos = light->GetPosition();
 	//Looking at origin so look at is simply negative pos
 	D3DXVECTOR3 lookat = -pos;
 	D3DXVec3Normalize(&lookat, &lookat);
@@ -332,4 +288,11 @@ void ShadowmapEffect::UpdateLightProj()
 	HR(m_pGroundVB->Unlock());
 	
 	D3DXMatrixOrthoLH(&m_lightProj, maxX - minX + 10, maxY - minY + 10,  minZ - 10, maxZ + 10); 
+}
+
+Effect* ShadowmapEffect::Create(ID3DXBuffer** errors)
+{
+	ShadowmapEffect* newEffect = NEW ShadowmapEffect(L"Textures/Grass.bmp", L"Textures/floor.bmp");
+	D3DXCreateEffectFromFile(m_pDevice, L"Shaders/Shadowmap.fx", 0, 0, D3DXSHADER_DEBUG, 0, &newEffect->m_pEffect, errors);
+	return newEffect;
 }

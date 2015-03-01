@@ -3,14 +3,14 @@
 #include "NiteShader.h"
 
 //Constructor
-Actor::Actor(NiteShader* parent)
+Actor::Actor(IDirect3DDevice9* dev)
 {
 	m_pos = D3DXVECTOR3(0.f, 0.f, 0.f);
 	m_scale = D3DXVECTOR3(1.f, 1.f, 1.f);
 	m_rotation = D3DXVECTOR3(0.f, 0.f, 0.f);
 	m_pMesh = 0;
 	m_pAdjacency = 0;
-	m_pParent = parent;
+	m_pDevice = dev;
 	m_numMaterials = 0;
 }
 
@@ -47,8 +47,8 @@ void Actor::Load(char* fileName)
 //Creates a sphere mesh
 void Actor::CreateSphere()
 {
-	HR(D3DXCreateSphere(m_pParent->GetDevice(), 5.f, 40, 40, &m_pMesh, 0));
-	m_pAdjacency = new DWORD[m_pMesh->GetNumFaces() * 3];
+	HR(D3DXCreateSphere(m_pDevice, 5.f, 40, 40, &m_pMesh, 0));
+	m_pAdjacency = NEW DWORD[m_pMesh->GetNumFaces() * 3];
 	HR(m_pMesh->GenerateAdjacency(0.001f, m_pAdjacency));
 	GenerateSphereVertex();
 	m_numMaterials = 1;
@@ -68,9 +68,9 @@ void Actor::GenerateSphereVertex()
 
 	Vertex::decl->GetDeclaration(definition, &numElements);
 
-	//Clone Mesh with new vertex declaration
+	//Clone Mesh with NEW vertex declaration
 	ID3DXMesh*			temp = 0;
-	HR(m_pMesh->CloneMesh(D3DXMESH_SYSTEMMEM, definition, m_pParent->GetDevice(), &temp));
+	HR(m_pMesh->CloneMesh(D3DXMESH_SYSTEMMEM, definition, m_pDevice, &temp));
 
 	SAFE_RELEASE(m_pMesh);
 

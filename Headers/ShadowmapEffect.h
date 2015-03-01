@@ -1,25 +1,30 @@
 #pragma once
 #include "Effect.h"
 
+class Light;
 
 class ShadowmapEffect : public Effect
 {
 public:
-	ShadowmapEffect(NiteShader* parent, char* sphereTex, char* groundTex);
+
 	virtual ~ShadowmapEffect();
 
 	void Init() override;
 	void Shutdown() override;
-	void Update(float dt) override;
+	void SetData(const ShaderData*) override;
 	void Render(float dt, ID3DXMesh* mesh, int numMaterials) override;
+	static Effect* Create(ID3DXBuffer**);
 protected:
+	ShadowmapEffect(const WCHAR* sphereTex, const WCHAR* groundTex);
+	ShadowmapEffect() {}
+
 	//Sphere texture
 	IDirect3DTexture9*			m_pSphereTexture;
-	char*						m_pSphereTextureFile;
+	const WCHAR*				m_pSphereTextureFile;
 
 	//Ground Plane texture
 	IDirect3DTexture9*			m_pGroundTexture;
-	char*						m_pGroundTextureFile;
+	const WCHAR*				m_pGroundTextureFile;
 	//Ground plane vertex buffer
 	IDirect3DVertexBuffer9*		m_pGroundVB;
 	IDirect3DIndexBuffer9*		m_pGroundIB;
@@ -27,7 +32,6 @@ protected:
 	//Shadow map
 	IDirect3DTexture9*			m_pShadowMapTexture;
 	IDirect3DSurface9*			m_pShadowMapSurface;
-
 
 	//Handles
 	D3DXHANDLE					m_pWorldViewProjHandle;
@@ -39,13 +43,10 @@ protected:
 	D3DXHANDLE					m_pShadowMapHandle;
 	D3DXHANDLE					m_pShadowMapResolutionHandle;
 
-	//This stuff should really be integrated with the light itself but
-	//would require too much code shuffling at this point
 	D3DXMATRIX	m_lightSpace;
 	D3DXMATRIX	m_textureSpace;
 	D3DXMATRIX  m_textureBias;
 	D3DXMATRIX  m_lightProj;
-
 
 	//Helper functions
 	void InitGround();
@@ -54,7 +55,7 @@ protected:
 	//Set texture bias and projection
 	void InitTextureBias();
 	//Update light view
-	void UpdateLightView();
+	void UpdateLightView(const Light* light);
 	//Updates the light projection
 	void UpdateLightProj();
 };

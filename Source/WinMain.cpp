@@ -11,14 +11,11 @@
 #include "Input.h"
 #include "NiteShader.h"
 #include "Globals.h"
-#include "Camera.h"
 
 //DirectX includes
 #include <d3d9.h>
 
 #define CLASSNAME L"MainWindow"
-#define SCREENWIDTH		GetSystemMetrics(SM_CXSCREEN)
-#define SCREENHEIGHT	GetSystemMetrics(SM_CYSCREEN)
 
 //Application instance
 HINSTANCE	g_hInstance;
@@ -26,8 +23,6 @@ HINSTANCE	g_hInstance;
 HWND		g_hWnd;
 //Global input class
 Input*		g_Input;
-//Camera class
-Camera*		g_Camera;
 //Application Class
 NiteShader	g_NiteShader;
 
@@ -53,10 +48,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//Initialize input
 	Input input(DISCL_FOREGROUND | DISCL_NONEXCLUSIVE, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE, g_hInstance, g_hWnd);
 	g_Input = &input;
-	//Initialize Camera
-	Camera camera;
-	g_Camera = &camera;
-	g_Camera->GetPos() = D3DXVECTOR3(0.f, 0.f, -20.f);
 	//Initialize NiteShader
 	g_NiteShader.Init();
 	//My message structure to capture messages
@@ -98,7 +89,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			//Poll the input
 			g_Input->Poll();
 			g_NiteShader.Update(dt);
-			g_Camera->Update(dt);
 			g_NiteShader.Render(dt);
 
 			if (frameTimer > 1.f)
@@ -156,7 +146,7 @@ void InitWindow()
 	DWORD style = WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU;
 	g_hWnd = CreateWindow(CLASSNAME, L"Thomas Loudiana - NiteShader",
 						style, CW_USEDEFAULT, CW_USEDEFAULT,
-						SCREENWIDTH, SCREENHEIGHT, NULL, NULL, g_hInstance, NULL);
+						WINDOWWIDTH, WINDOWHEIGHT, NULL, NULL, g_hInstance, NULL);
 
 	//Display the window
 	ShowWindow(g_hWnd, SW_SHOW);

@@ -2,13 +2,13 @@
 #include "Input.h"
 
 //Constructor/Destructor
-Camera::Camera()
+Camera::Camera(D3DXVECTOR3 pos)
 {
 	D3DXMatrixIdentity(&m_view);
 	D3DXMatrixIdentity(&m_proj);
 	D3DXMatrixIdentity(&m_viewProj);
 
-	m_position   = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+	m_position = pos;
 	m_cameraX = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
 	m_cameraY    = D3DXVECTOR3(0.0f, 1.0f, 0.0f);
 	m_cameraZ  = D3DXVECTOR3(0.0f, 0.0f, 1.0f);
@@ -57,7 +57,7 @@ const D3DXVECTOR3&	Camera::GetCameraY() const
 }
 
 //Returns the position of the camera
-D3DXVECTOR3&		Camera::GetPos()
+const D3DXVECTOR3&		Camera::GetPos() const
 {
 	return m_position;
 }
@@ -129,7 +129,7 @@ void				Camera::Update(float dt)
 		D3DXVec3TransformCoord(&m_cameraZ, &m_cameraZ, &R);
 	}
 
-	//Build the new view matrix
+	//Build the NEW view matrix
 	BuildView();
 }
 

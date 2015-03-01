@@ -2,32 +2,25 @@
 #include <d3dx9.h>
 
 class NiteShader;
+struct ShaderData;
 
 class Effect
 {
 public:
-	Effect(NiteShader* parent);
+	Effect();
 	virtual ~Effect();
 
 	virtual void Init() = 0;
 	virtual void Render(float dt, ID3DXMesh* mesh, int numMat) = 0;
+	virtual void SetData(const ShaderData*) = 0;
 	virtual void Shutdown();
-	virtual void Update(float dt) = 0;
-	virtual void ReCompile();
+	static void SetDevice(IDirect3DDevice9* dev);
 
 	virtual void OnLostDevice();
 	virtual void OnResetDevice();
 	
 protected:
-	NiteShader*			m_pParent;
-	ID3DXEffect*		m_pEffect;
-	char*				m_pFileName;
-	char*				m_pEffectName;
-	ID3DXBuffer*		m_pErrors;
-	D3DXHANDLE			m_pTechniqueHandle;
-	bool				m_bCompileErrors;
-
-	void PrintName();
-	void CompileShader();
-	void CompileDefault();
+	static IDirect3DDevice9*	m_pDevice;
+	ID3DXEffect*				m_pEffect;
+	D3DXHANDLE					m_pTechniqueHandle;
 };

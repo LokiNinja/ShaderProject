@@ -1,14 +1,20 @@
 //Default shaders
+float4x4 worldViewProj;
 
 struct Output
 {
 	float4 position : POSITION;
 };
 
-Output	DefaultVS(float3 pos : POSITION)
+struct a2V
+{
+	float4 position : POSITION0;
+};
+
+Output	DefaultVS(a2V IN)
 {
 	Output output = (Output)0;
-	output.position = float4(pos, 1.f);
+	output.position = mul(IN.position, worldViewProj);
 	return output;
 }
 
@@ -21,7 +27,8 @@ technique Default
 {
 	pass p0
 	{
-		VertexShader = compile vs_2_0 DefaultVS();
-		PixelShader = compile ps_2_0 DefaultPS();
+		VertexShader = compile vs_3_0 DefaultVS();
+		PixelShader = compile ps_3_0 DefaultPS();
+		FillMode=WIREFRAME;
 	}
 }	

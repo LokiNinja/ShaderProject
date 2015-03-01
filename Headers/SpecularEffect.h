@@ -6,17 +6,21 @@ class SpecularEffect : public Effect
 {
 public:
 	//Constructor/Destructor
-	SpecularEffect(NiteShader* parent, char* texture);
+
 	virtual ~SpecularEffect();
 
 	//Overrides
 	void Init() override;
 	void Render(float dt, ID3DXMesh* mesh, int numMat) override;
-	void Update(float dt) override;
+	void SetData(const ShaderData*);
 	void Shutdown() override;
+	static Effect* Create(ID3DXBuffer**);
 protected:
+	SpecularEffect(const WCHAR* texture);
+	SpecularEffect() {}
+
 	IDirect3DTexture9*			m_pTexture;
-	char*						m_pTextureFile;
+	const WCHAR*				m_pTextureFile;
 
 	//Handles
 	D3DXHANDLE					m_pWorldHandle;

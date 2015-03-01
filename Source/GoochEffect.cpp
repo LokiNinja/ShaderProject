@@ -1,13 +1,12 @@
 #include "GoochEffect.h"
 #include "Globals.h"
-#include "NiteShader.h"
+#include "ShaderData.h"
+#include "Light.h"
 #include "Camera.h"
 
 //Constructor
-GoochEffect::GoochEffect(NiteShader *parent, D3DXVECTOR3 warmColor, D3DXVECTOR3 coolColor) : Effect(parent)
+GoochEffect::GoochEffect( D3DXVECTOR3 warmColor, D3DXVECTOR3 coolColor)
 {
-	m_pFileName = "Shaders/Gooch.fx";
-	m_pEffectName = "GOOCH";
 	m_pWorldViewProjHandle = 0;
 	m_pWorldHandle = 0;
 	m_pCoolColorHandle = 0;
@@ -31,10 +30,6 @@ void GoochEffect::Shutdown()
 //Init
 void GoochEffect::Init()
 {
-	//compile the shader
-	CompileShader();
-	if (m_bCompileErrors)
-		return;
 	//Set the handles
 	m_pWorldViewProjHandle = m_pEffect->GetParameterByName(0, "worldViewProj");
 	m_pWorldHandle = m_pEffect->GetParameterByName(0, "world");
@@ -49,23 +44,20 @@ void GoochEffect::Init()
 	HR(m_pEffect->SetTechnique(m_pTechniqueHandle));
 }
 
-//Update
-void GoochEffect::Update(float dt)
+void GoochEffect::SetData(const ShaderData* data)
 {
-	if (m_bCompileErrors)
-		return;
 	//Just set the matrices
-	D3DXMATRIX temp = m_pParent->GetWorld() * g_Camera->GetView() * g_Camera->GetProjection();
-	D3DXVECTOR3 lightPos = m_pParent->GetLight()->GetPosition();
-	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &temp));
-	HR(m_pEffect->SetMatrix(m_pWorldHandle, &m_pParent->GetWorld()));
+	D3DXMATRIX WVP = *(data->world) * *(data->view) * *(data->proj);
+	D3DXVECTOR3 lightPos = data->light->GetPosition();
+	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &WVP));
+	HR(m_pEffect->SetMatrix(m_pWorldHandle, data->world));
 	HR(m_pEffect->SetValue(m_pLightPositionHandle, lightPos, sizeof(D3DXVECTOR3)));
-	PrintName();
 }
 
 //Render
 void GoochEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 {
+	HR(m_pDevice->BeginScene());
 	UINT passes;
 	HR(m_pEffect->Begin(&passes, 0));
 	for (UINT i = 0; i < passes; i++)
@@ -78,5 +70,12 @@ void GoochEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 		HR(m_pEffect->EndPass());
 	}
 	HR(m_pEffect->End());
-	PrintName();
+	HR(m_pDevice->EndScene());
+}
+
+Effect* GoochEffect::Create(ID3DXBuffer** errors)
+{
+	GoochEffect* newEffect = NEW GoochEffect(D3DXVECTOR3(1.f, 0.f, 0.f), D3DXVECTOR3(0.f, 0.f, 1.f));
+	D3DXCreateEffectFromFile(m_pDevice, L"Shaders/Gooch.fx", 0, 0, D3DXSHADER_DEBUG, 0, &newEffect->m_pEffect, errors);
+	return newEffect;
 }

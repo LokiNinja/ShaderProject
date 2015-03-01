@@ -12,7 +12,7 @@ public:
 	D3DXVECTOR3		m_rotation;
 
 	//Constructor
-	Actor(NiteShader* parent);
+	Actor(IDirect3DDevice9*);
 	//Destructor
 	~Actor();
 
@@ -27,7 +27,7 @@ private:
 	//Adjacency info
 	DWORD*			m_pAdjacency;
 	//Pointer to parent app
-	NiteShader*		m_pParent;
+	IDirect3DDevice9*	m_pDevice;
 	//Number of subsets/materials
 	int				m_numMaterials;
 

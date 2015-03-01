@@ -1,7 +1,11 @@
 
 #include <DxErr.h>
 #include <d3dx9.h>
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
 
+#define NEW new(_NORMAL_BLOCK,__FILE__,__LINE__)
 
 #if defined(DEBUG) | defined(_DEBUG)
 	#ifndef D3D_DEBUG_INFO
@@ -38,6 +42,9 @@ struct Vertex
 	static IDirect3DVertexDeclaration9* decl;
 };
 
+
+#define WINDOWWIDTH GetSystemMetrics(SM_CXSCREEN)
+#define WINDOWHEIGHT GetSystemMetrics(SM_CYSCREEN)
 
 //For easy releasing of com objects
 #ifndef SAFE_RELEASE

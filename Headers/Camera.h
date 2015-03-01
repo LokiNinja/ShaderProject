@@ -5,7 +5,7 @@ class Camera
 {
 public:
 	//Constructor/Destructor
-	Camera();
+	Camera(D3DXVECTOR3);
 	~Camera();
 
 	//Accessors/mutators
@@ -23,7 +23,7 @@ public:
 	void				SetSpeed(float newSpeed);
 
 	//Returns the position of the camera
-	D3DXVECTOR3&		GetPos();
+	const D3DXVECTOR3&		GetPos() const;
 
 	//update function
 	void				Update(float dt);
@@ -50,5 +50,3 @@ private:
 	//Builds the view matrix
 	void BuildView();
 };
-
-extern Camera* g_Camera;

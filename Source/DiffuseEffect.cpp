@@ -1,13 +1,11 @@
 #include "DiffuseEffect.h"
 #include "NiteShader.h"
 #include "Globals.h"
-#include "Camera.h"
+#include "ShaderData.h"
 
 //Constructor
-DiffuseEffect::DiffuseEffect(NiteShader* parent, char* texture) : Effect(parent)
+DiffuseEffect::DiffuseEffect(const WCHAR* texture)
 {
-	m_pFileName = "Shaders/Diffuse.fx";
-	m_pEffectName = "DIFFUSE";
 	m_pTexture = 0;
 	m_pTextureFile = texture;
 	m_pWorldViewProjHandle = 0;
@@ -31,15 +29,7 @@ void DiffuseEffect::Shutdown()
 //Initializes the shader
 void DiffuseEffect::Init()
 {
-	//Compile the Shader
-	CompileShader();
-	if (m_bCompileErrors)
-		return;
-	{
-		string newString(m_pTextureFile);
-		wstring tempString(newString.begin(), newString.end());
-		HR(D3DXCreateTextureFromFile(m_pParent->GetDevice(), tempString.c_str(), &m_pTexture));
-	}
+	HR(D3DXCreateTextureFromFile(m_pDevice, m_pTextureFile, &m_pTexture));
 	//Initialize handles
 	m_pWorldViewProjHandle = m_pEffect->GetParameterByName(0, "worldViewProj");
 	m_pWorldHandle = m_pEffect->GetParameterByName(0, "world");
@@ -52,21 +42,19 @@ void DiffuseEffect::Init()
 	HR(m_pEffect->SetTexture(m_pTextureHandle, m_pTexture));
 }
 
-//Updates the effect, same for ambient
-void DiffuseEffect::Update(float dt)
+void DiffuseEffect::SetData(const ShaderData* data)
 {
-	if (m_bCompileErrors)
-		return;
-	D3DXMATRIX temp = m_pParent->GetWorld() * g_Camera->GetView() * g_Camera->GetProjection();
-	D3DXVECTOR3 lightPos = m_pParent->GetLight()->GetPosition();
+	D3DXMATRIX temp = *(data->world) * *(data->view) * *(data->proj);
+	D3DXVECTOR3 lightPos = data->light->GetPosition();
 	HR(m_pEffect->SetMatrix(m_pWorldViewProjHandle, &temp));
-	HR(m_pEffect->SetMatrix(m_pWorldHandle, &m_pParent->GetWorld()));
+	HR(m_pEffect->SetMatrix(m_pWorldHandle, data->world));
 	HR(m_pEffect->SetValue(m_pLightPositionHandle, lightPos, sizeof(D3DXVECTOR3)));
 }
 
 //Renders the effect
 void DiffuseEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 {
+	HR(m_pDevice->BeginScene());
 	UINT passes;
 	HR(m_pEffect->Begin(&passes, 0));
 	for (UINT i = 0; i < passes; i++)
@@ -79,5 +67,12 @@ void DiffuseEffect::Render(float dt, ID3DXMesh* mesh, int numMaterials)
 		HR(m_pEffect->EndPass());
 	}
 	HR(m_pEffect->End());
-	PrintName();
+	HR(m_pDevice->EndScene());
+}
+
+Effect* DiffuseEffect::Create(ID3DXBuffer** errors)
+{
+	DiffuseEffect* newEffect = NEW DiffuseEffect(L"Textures/Grass.bmp");
+	D3DXCreateEffectFromFile(m_pDevice, L"Shaders/Diffuse.fx", 0, 0, D3DXSHADER_DEBUG, 0, &newEffect->m_pEffect, errors);
+	return newEffect;
 }

@@ -6,19 +6,22 @@ class BumpEffect : public Effect
 {
 public:
 	//Constructor/Destructor
-	BumpEffect(NiteShader* parent, char* texture, char* normalMap);
-	~BumpEffect();
 
+	~BumpEffect();
+	static Effect* Create(ID3DXBuffer**);
 	void Init() override;
 	void Shutdown() override;
-	void Update(float dt) override;
 	void Render(float dt, ID3DXMesh* mesh, int numMaterials) override;
+	void SetData(const ShaderData* data) override;
 private:
+	BumpEffect(const WCHAR* texture, const WCHAR* normalMap);
+	BumpEffect() {}
+
 	//Texture and normal map stuff
 	IDirect3DTexture9*		m_pTexture;
-	char*					m_pTextureFile;
+	const WCHAR*			m_pTextureFile;
 	IDirect3DTexture9*		m_pNormalMap;
-	char*					m_pNormalMapFile;
+	const WCHAR*			m_pNormalMapFile;
 
 	D3DXHANDLE				m_pWorldViewProjHandle;
 	D3DXHANDLE				m_pWorldHandle;

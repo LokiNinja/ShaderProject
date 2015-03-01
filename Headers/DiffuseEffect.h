@@ -5,18 +5,22 @@ class DiffuseEffect : public Effect
 {
 public:
 	//Constructor Destructor
-	DiffuseEffect(NiteShader* parent, char* texture);
+
 	virtual ~DiffuseEffect();
 
 	//Base class overrides
 	void Init() override;
 	void Render(float dt, ID3DXMesh* mesh, int numMat) override;
 	void Shutdown() override;
-	void Update(float dt) override;
-protected:
+	void SetData(const ShaderData*) override;
+	static Effect* Create(ID3DXBuffer**);
+private:
+	DiffuseEffect(const WCHAR* texture);
+	DiffuseEffect() {}
+
 	//Texture info
 	IDirect3DTexture9*			m_pTexture;
-	char*						m_pTextureFile;
+	const WCHAR*				m_pTextureFile;
 	//Handles
 	D3DXHANDLE					m_pWorldViewProjHandle;
 	D3DXHANDLE					m_pWorldHandle;
