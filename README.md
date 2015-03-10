@@ -10,13 +10,13 @@ Installation:  Other than DirectX 9 and Win32 no dependancies.  Simply clone and
 
 Controls:  
 
-W,A,S,D - movement
-Left Mouse Drag - Look
-Right Mouse Drag - Move light
-Left/Right Arrows - cycle effects
-R - recompile shaders
-C - reset camera
-L - reset light
+    W,A,S,D - movement
+    Left Mouse Drag - Look
+    Right Mouse Drag - Move light
+    Left/Right Arrows - cycle effects
+    R - recompile shaders
+    C - reset camera
+    L - reset light
 
 Future:  This is a project that I continue to expand.  The framework is complete but I love learning about and
 adding new effects.
